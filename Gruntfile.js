@@ -24,11 +24,9 @@ module.exports = function(grunt) {
         nodeunit: {
             tests: ['test/*_test.js'],
         },
-
         clean: {
           tests: ['tmp'],
         },
-
     });
 
     grunt.loadTasks('tasks');
@@ -37,12 +35,9 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-contrib-clean');
     grunt.loadNpmTasks('grunt-contrib-nodeunit');
 
-
-
     grunt.registerTask('test', ['clean', 'nodeunit']);
 
     grunt.registerTask('default', ['jshint', 'test']);
-
 
 
 //  // Project configuration.
