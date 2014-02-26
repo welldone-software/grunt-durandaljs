@@ -24,57 +24,24 @@ module.exports = function(grunt) {
         nodeunit: {
             tests: ['test/*_test.js'],
         },
-        durandaljs : {
-            almond1 : {
-                options: {
-                    baseDir: 'test/fixtures/HTML StarterKit/app',
-                    minify: false,
-                    output: 'test/tmp/almond1/almond.main.js',
-                    almond: true,
-                }
-            },
-            almond2 : {
-                options: {
-                    baseDir: 'test/fixtures/HTML StarterKit/app',
-                    minify: true,
-                    output: 'test/tmp/almond2/almond.main.js',
-                    almond: true,
-                }
-            },
-            almond3 : {
-                options: {
-                    baseDir: 'test/fixtures/HTML StarterKit/app',
-                    minify: false,
-                    output: 'test/tmp/almond3/almond.main.js',
-                    almond: '/my/custom/almondpath',
-                }
-            },
-            require : {
-                options: {
-                    baseDir: 'test/fixtures/HTML StarterKit/app',
-                    require: ['main'],
-                    output: 'test/tmp/require1/main.js'
-                },
-            },
-            options: {
-                extraModules: ['plugins/widget', 'plugins/dialog', 'plugins/router', 'transitions/entrance']
-            }
-        }
+
+        clean: {
+          tests: ['tmp'],
+        },
+
     });
 
     grunt.loadTasks('tasks');
-
-    grunt.loadTasks('grunt.durandaljs');
 
     grunt.loadNpmTasks('grunt-contrib-jshint');
     grunt.loadNpmTasks('grunt-contrib-clean');
     grunt.loadNpmTasks('grunt-contrib-nodeunit');
 
-    grunt.registerTask('cleanTmp', function(){
-        grunt.file.delete('test/tmp');
-    });
 
-    grunt.registerTask('default', ['cleanTmp', 'jshint', 'durandaljs']);
+
+    grunt.registerTask('test', ['clean', 'nodeunit']);
+
+    grunt.registerTask('default', ['jshint', 'test']);
 
 
 
