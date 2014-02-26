@@ -1,6 +1,7 @@
 'use strict';
 
-var grunt = require('grunt');
+var grunt = require('grunt'),
+    _ = require('lodash');
 
 /*
   ======== A Handy Little Nodeunit Reference ========
@@ -22,62 +23,71 @@ var grunt = require('grunt');
     test.ifError(value)
 */
 
+var optionsToCheck = {
+    almond1 : {
+        options: {
+            baseDir: 'test/fixtures/HTML StarterKit/app',
+            minify: false,
+            almond: true
+        }
+    },
+    almond2 : {
+        options: {
+            baseDir: 'test/fixtures/HTML StarterKit/app',
+            minify: true,
+            almond: true
+            //todo: test with "almond: '/my/custom/almondpath'"
+        }
+    },
+    require : {
+        options: {
+            baseDir: 'test/fixtures/HTML StarterKit/app',
+            require: ['main']
+        }
+    }
+};
+
+_.each(optionsToCheck, function(option, optionName){
+    option.options.output = _.template('test/tmp/${name}/main.js', {name: optionName});
+});
+
+var initObj = _.clone(
+    {
+        durandaljs: optionsToCheck
+    },
+    {
+        durandaljs : {
+            options: {
+                extraModules: ['plugins/widget', 'plugins/dialog', 'plugins/router', 'transitions/entrance']
+            }
+        }
+    }
+);
+
+grunt.config.init(initObj);
+
 exports.durandaljs = {
     setUp: function(done) {
-    // setup here if necessary
+        // setup here if necessary
         done();
-    },
-    default_options: function(test) {
-        var config = {
-            durandaljs : {
-                almond1 : {
-                    options: {
-                        baseDir: 'test/fixtures/HTML StarterKit/app',
-                        minify: false,
-                        output: 'test/tmp/almond1/almond.main.js',
-                        almond: true
-                    }
-                },
-                almond2 : {
-                    options: {
-                        baseDir: 'test/fixtures/HTML StarterKit/app',
-                        minify: true,
-                        output: 'test/tmp/almond2/almond.main.js',
-                        almond: true
-                    }
-                },
-//                almond3 : {
-//                    options: {
-//                        baseDir: 'test/fixtures/HTML StarterKit/app',
-//                        minify: false,
-//                        output: 'test/tmp/almond3/almond.main.js',
-//                        almond: '/my/custom/almondpath'
-//                    }
-//                },
-                require : {
-                    options: {
-                        baseDir: 'test/fixtures/HTML StarterKit/app',
-                        require: ['main'],
-                        output: 'test/tmp/require1/main.js'
-                    }
-                },
-                options: {
-                    extraModules: ['plugins/widget', 'plugins/dialog', 'plugins/router', 'transitions/entrance']
-                }
-            }
-        };
+    }
+};
 
-        grunt.config.init(config);
+_.forEach(optionsToCheck, function(option, optionName){
+    exports.durandaljs[optionName] = function(test) {
+        var outputPath = option.options.output;
+        var expectedPath = _.template('test/expected/${name}/main.js', {name: optionName});
 
-        grunt.task.run('durandaljs');
+        //todo: run task before the test as it only ques them and not immediately runns them.
+        grunt.task.run('durandaljs:'+optionName);
 
         test.expect(1);
 
-        var expected = grunt.file.read('test/expected/almond1/almond.main.js');
-        var actual = grunt.file.read('test/tmp/almond1/almond.main.js');
+        var actual = grunt.file.read(outputPath);
+        var expected = grunt.file.read(expectedPath);
 
         test.equal(actual, expected, 'should describe what the default behavior is.');
 
         test.done();
-    }
-};
+    };
+});

@@ -15176,4 +15176,4 @@ define('text!views\welcome.html',[],function () { return '<section>\r\n    <h2 d
 
 require(["main"]);
 }());
-//# sourceMappingURL=almond.main.js.map
+//# sourceMappingURL=main.js.map

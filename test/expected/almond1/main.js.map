@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "file": "C:/Users/vicli_000/WebstormProjects/grunt-durandal/grunt-durandaljs/test/tmp/almond1/almond.main.js",
+  "file": "C:/Users/vicli_000/WebstormProjects/grunt-durandal/grunt-durandaljs/test/tmp/almond1/main.js",
   "sources": [
     "../lib/jquery/jquery-1.9.1.js",
     "../lib/durandal/js/system.js",

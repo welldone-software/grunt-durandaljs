@@ -12289,86 +12289,7 @@ define('main',['durandal/system', 'durandal/app', 'durandal/viewLocator'],  func
         app.setRoot('viewmodels/shell', 'entrance');
     });
 });
-/**
- * Durandal 2.0.1 Copyright (c) 2012 Blue Spire Consulting, Inc. All Rights Reserved.
- * Available via the MIT license.
- * see: http://durandaljs.com or https://github.com/BlueSpire/Durandal for details.
- */
-/**
- * Enables common http request scenarios.
- * @module http
- * @requires jquery
- * @requires knockout
- */
-define('plugins/http',['jquery', 'knockout'], function($, ko) {
-    /**
-     * @class HTTPModule
-     * @static
-     */
-    return {
-        /**
-         * The name of the callback parameter to inject into jsonp requests by default.
-         * @property {string} callbackParam
-         * @default callback
-         */
-        callbackParam:'callback',
-        /**
-         * Makes an HTTP GET request.
-         * @method get
-         * @param {string} url The url to send the get request to.
-         * @param {object} [query] An optional key/value object to transform into query string parameters.
-         * @return {Promise} A promise of the get response data.
-         */
-        get:function(url, query) {
-            return $.ajax(url, { data: query });
-        },
-        /**
-         * Makes an JSONP request.
-         * @method jsonp
-         * @param {string} url The url to send the get request to.
-         * @param {object} [query] An optional key/value object to transform into query string parameters.
-         * @param {string} [callbackParam] The name of the callback parameter the api expects (overrides the default callbackParam).
-         * @return {Promise} A promise of the response data.
-         */
-        jsonp: function (url, query, callbackParam) {
-            if (url.indexOf('=?') == -1) {
-                callbackParam = callbackParam || this.callbackParam;
-
-                if (url.indexOf('?') == -1) {
-                    url += '?';
-                } else {
-                    url += '&';
-                }
-
-                url += callbackParam + '=?';
-            }
-
-            return $.ajax({
-                url: url,
-                dataType:'jsonp',
-                data:query
-            });
-        },
-        /**
-         * Makes an HTTP POST request.
-         * @method post
-         * @param {string} url The url to send the post request to.
-         * @param {object} data The data to post. It will be converted to JSON. If the data contains Knockout observables, they will be converted into normal properties before serialization.
-         * @return {Promise} A promise of the response data.
-         */
-        post:function(url, data) {
-            return $.ajax({
-                url: url,
-                data: ko.toJSON(data),
-                type: 'POST',
-                contentType: 'application/json',
-                dataType: 'json'
-            });
-        }
-    };
-});
-
-define('viewmodels/flickr',['plugins/http', 'durandal/app', 'knockout'], function (http, app, ko) {
+define('viewmodels\flickr',['plugins/http', 'durandal/app', 'knockout'], function (http, app, ko) {
     //Note: This module exports an object.
     //That means that every module that "requires" it will get the same object instance.
     //If you wish to be able to create multiple instances, instead export a function.
@@ -12400,6 +12321,686 @@ define('viewmodels/flickr',['plugins/http', 'durandal/app', 'knockout'], functio
         }
     };
 });
+define('viewmodels\shell',['plugins/router', 'durandal/app'], function (router, app) {
+    return {
+        router: router,
+        search: function() {
+            //It's really easy to show a message box.
+            //You can add custom options too. Also, it returns a promise for the user's response.
+            app.showMessage('Search not yet implemented...');
+        },
+        activate: function () {
+            router.map([
+                { route: '', title:'Welcome', moduleId: 'viewmodels/welcome', nav: true },
+                { route: 'flickr', moduleId: 'viewmodels/flickr', nav: true }
+            ]).buildNavigationModel();
+            
+            return router.activate();
+        }
+    };
+});
+define('viewmodels\welcome',[],function() {
+    var ctor = function () {
+        this.displayName = 'Welcome to the Durandal Starter Kit!';
+        this.description = 'Durandal is a cross-device, cross-platform client framework written in JavaScript and designed to make Single Page Applications (SPAs) easy to create and maintain.';
+        this.features = [
+            'Clean MV* Architecture',
+            'JS & HTML Modularity',
+            'Simple App Lifecycle',
+            'Eventing, Modals, Message Boxes, etc.',
+            'Navigation & Screen State Management',
+            'Consistent Async Programming w/ Promises',
+            'App Bundling and Optimization',
+            'Use any Backend Technology',
+            'Built on top of jQuery, Knockout & RequireJS',
+            'Integrates with other libraries such as SammyJS & Bootstrap',
+            'Make jQuery & Bootstrap widgets templatable and bindable (or build your own widgets).'
+        ];
+    };
+
+    //Note: This module exports a function. That means that you, the developer, can create multiple instances.
+    //This pattern is also recognized by Durandal so that it can create instances on demand.
+    //If you wish to create a singleton, you should export an object instead of a function.
+    //See the "flickr" module for an example of object export.
+
+    return ctor;
+});
+/**
+ * Durandal 2.0.1 Copyright (c) 2012 Blue Spire Consulting, Inc. All Rights Reserved.
+ * Available via the MIT license.
+ * see: http://durandaljs.com or https://github.com/BlueSpire/Durandal for details.
+ */
+/**
+ * Layers the widget sugar on top of the composition system.
+ * @module widget
+ * @requires system
+ * @requires composition
+ * @requires jquery
+ * @requires knockout
+ */
+define('plugins/widget',['durandal/system', 'durandal/composition', 'jquery', 'knockout'], function(system, composition, $, ko) {
+    var kindModuleMaps = {},
+        kindViewMaps = {},
+        bindableSettings = ['model', 'view', 'kind'],
+        widgetDataKey = 'durandal-widget-data';
+
+    function extractParts(element, settings){
+        var data = ko.utils.domData.get(element, widgetDataKey);
+
+        if(!data){
+            data = {
+                parts:composition.cloneNodes(ko.virtualElements.childNodes(element))
+            };
+
+            ko.virtualElements.emptyNode(element);
+            ko.utils.domData.set(element, widgetDataKey, data);
+        }
+
+        settings.parts = data.parts;
+    }
+
+    /**
+     * @class WidgetModule
+     * @static
+     */
+    var widget = {
+        getSettings: function(valueAccessor) {
+            var settings = ko.utils.unwrapObservable(valueAccessor()) || {};
+
+            if (system.isString(settings)) {
+                return { kind: settings };
+            }
+
+            for (var attrName in settings) {
+                if (ko.utils.arrayIndexOf(bindableSettings, attrName) != -1) {
+                    settings[attrName] = ko.utils.unwrapObservable(settings[attrName]);
+                } else {
+                    settings[attrName] = settings[attrName];
+                }
+            }
+
+            return settings;
+        },
+        /**
+         * Creates a ko binding handler for the specified kind.
+         * @method registerKind
+         * @param {string} kind The kind to create a custom binding handler for.
+         */
+        registerKind: function(kind) {
+            ko.bindingHandlers[kind] = {
+                init: function() {
+                    return { controlsDescendantBindings: true };
+                },
+                update: function(element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
+                    var settings = widget.getSettings(valueAccessor);
+                    settings.kind = kind;
+                    extractParts(element, settings);
+                    widget.create(element, settings, bindingContext, true);
+                }
+            };
+
+            ko.virtualElements.allowedBindings[kind] = true;
+            composition.composeBindings.push(kind + ':');
+        },
+        /**
+         * Maps views and module to the kind identifier if a non-standard pattern is desired.
+         * @method mapKind
+         * @param {string} kind The kind name.
+         * @param {string} [viewId] The unconventional view id to map the kind to.
+         * @param {string} [moduleId] The unconventional module id to map the kind to.
+         */
+        mapKind: function(kind, viewId, moduleId) {
+            if (viewId) {
+                kindViewMaps[kind] = viewId;
+            }
+
+            if (moduleId) {
+                kindModuleMaps[kind] = moduleId;
+            }
+        },
+        /**
+         * Maps a kind name to it's module id. First it looks up a custom mapped kind, then falls back to `convertKindToModulePath`.
+         * @method mapKindToModuleId
+         * @param {string} kind The kind name.
+         * @return {string} The module id.
+         */
+        mapKindToModuleId: function(kind) {
+            return kindModuleMaps[kind] || widget.convertKindToModulePath(kind);
+        },
+        /**
+         * Converts a kind name to it's module path. Used to conventionally map kinds who aren't explicitly mapped through `mapKind`.
+         * @method convertKindToModulePath
+         * @param {string} kind The kind name.
+         * @return {string} The module path.
+         */
+        convertKindToModulePath: function(kind) {
+            return 'widgets/' + kind + '/viewmodel';
+        },
+        /**
+         * Maps a kind name to it's view id. First it looks up a custom mapped kind, then falls back to `convertKindToViewPath`.
+         * @method mapKindToViewId
+         * @param {string} kind The kind name.
+         * @return {string} The view id.
+         */
+        mapKindToViewId: function(kind) {
+            return kindViewMaps[kind] || widget.convertKindToViewPath(kind);
+        },
+        /**
+         * Converts a kind name to it's view id. Used to conventionally map kinds who aren't explicitly mapped through `mapKind`.
+         * @method convertKindToViewPath
+         * @param {string} kind The kind name.
+         * @return {string} The view id.
+         */
+        convertKindToViewPath: function(kind) {
+            return 'widgets/' + kind + '/view';
+        },
+        createCompositionSettings: function(element, settings) {
+            if (!settings.model) {
+                settings.model = this.mapKindToModuleId(settings.kind);
+            }
+
+            if (!settings.view) {
+                settings.view = this.mapKindToViewId(settings.kind);
+            }
+
+            settings.preserveContext = true;
+            settings.activate = true;
+            settings.activationData = settings;
+            settings.mode = 'templated';
+
+            return settings;
+        },
+        /**
+         * Creates a widget.
+         * @method create
+         * @param {DOMElement} element The DOMElement or knockout virtual element that serves as the target element for the widget.
+         * @param {object} settings The widget settings.
+         * @param {object} [bindingContext] The current binding context.
+         */
+        create: function(element, settings, bindingContext, fromBinding) {
+            if(!fromBinding){
+                settings = widget.getSettings(function() { return settings; }, element);
+            }
+
+            var compositionSettings = widget.createCompositionSettings(element, settings);
+
+            composition.compose(element, compositionSettings, bindingContext);
+        },
+        /**
+         * Installs the widget module by adding the widget binding handler and optionally registering kinds.
+         * @method install
+         * @param {object} config The module config. Add a `kinds` array with the names of widgets to automatically register. You can also specify a `bindingName` if you wish to use another name for the widget binding, such as "control" for example.
+         */
+        install:function(config){
+            config.bindingName = config.bindingName || 'widget';
+
+            if(config.kinds){
+                var toRegister = config.kinds;
+
+                for(var i = 0; i < toRegister.length; i++){
+                    widget.registerKind(toRegister[i]);
+                }
+            }
+
+            ko.bindingHandlers[config.bindingName] = {
+                init: function() {
+                    return { controlsDescendantBindings: true };
+                },
+                update: function(element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
+                    var settings = widget.getSettings(valueAccessor);
+                    extractParts(element, settings);
+                    widget.create(element, settings, bindingContext, true);
+                }
+            };
+
+            composition.composeBindings.push(config.bindingName + ':');
+            ko.virtualElements.allowedBindings[config.bindingName] = true;
+        }
+    };
+
+    return widget;
+});
+
+/**
+ * Durandal 2.0.1 Copyright (c) 2012 Blue Spire Consulting, Inc. All Rights Reserved.
+ * Available via the MIT license.
+ * see: http://durandaljs.com or https://github.com/BlueSpire/Durandal for details.
+ */
+/**
+ * The dialog module enables the display of message boxes, custom modal dialogs and other overlays or slide-out UI abstractions. Dialogs are constructed by the composition system which interacts with a user defined dialog context. The dialog module enforced the activator lifecycle.
+ * @module dialog
+ * @requires system
+ * @requires app
+ * @requires composition
+ * @requires activator
+ * @requires viewEngine
+ * @requires jquery
+ * @requires knockout
+ */
+define('plugins/dialog',['durandal/system', 'durandal/app', 'durandal/composition', 'durandal/activator', 'durandal/viewEngine', 'jquery', 'knockout'], function (system, app, composition, activator, viewEngine, $, ko) {
+    var contexts = {},
+        dialogCount = 0,
+        dialog;
+
+    /**
+     * Models a message box's message, title and options.
+     * @class MessageBox
+     */
+    var MessageBox = function(message, title, options) {
+        this.message = message;
+        this.title = title || MessageBox.defaultTitle;
+        this.options = options || MessageBox.defaultOptions;
+    };
+
+    /**
+     * Selects an option and closes the message box, returning the selected option through the dialog system's promise.
+     * @method selectOption
+     * @param {string} dialogResult The result to select.
+     */
+    MessageBox.prototype.selectOption = function (dialogResult) {
+        dialog.close(this, dialogResult);
+    };
+
+    /**
+     * Provides the view to the composition system.
+     * @method getView
+     * @return {DOMElement} The view of the message box.
+     */
+    MessageBox.prototype.getView = function(){
+        return viewEngine.processMarkup(MessageBox.defaultViewMarkup);
+    };
+
+    /**
+     * Configures a custom view to use when displaying message boxes.
+     * @method setViewUrl
+     * @param {string} viewUrl The view url relative to the base url which the view locator will use to find the message box's view.
+     * @static
+     */
+    MessageBox.setViewUrl = function(viewUrl){
+        delete MessageBox.prototype.getView;
+        MessageBox.prototype.viewUrl = viewUrl;
+    };
+
+    /**
+     * The title to be used for the message box if one is not provided.
+     * @property {string} defaultTitle
+     * @default Application
+     * @static
+     */
+    MessageBox.defaultTitle = app.title || 'Application';
+
+    /**
+     * The options to display in the message box of none are specified.
+     * @property {string[]} defaultOptions
+     * @default ['Ok']
+     * @static
+     */
+    MessageBox.defaultOptions = ['Ok'];
+
+    /**
+     * The markup for the message box's view.
+     * @property {string} defaultViewMarkup
+     * @static
+     */
+    MessageBox.defaultViewMarkup = [
+        '<div data-view="plugins/messageBox" class="messageBox">',
+            '<div class="modal-header">',
+                '<h3 data-bind="text: title"></h3>',
+            '</div>',
+            '<div class="modal-body">',
+                '<p class="message" data-bind="text: message"></p>',
+            '</div>',
+            '<div class="modal-footer" data-bind="foreach: options">',
+                '<button class="btn" data-bind="click: function () { $parent.selectOption($data); }, text: $data, css: { \'btn-primary\': $index() == 0, autofocus: $index() == 0 }"></button>',
+            '</div>',
+        '</div>'
+    ].join('\n');
+
+    function ensureDialogInstance(objOrModuleId) {
+        return system.defer(function(dfd) {
+            if (system.isString(objOrModuleId)) {
+                system.acquire(objOrModuleId).then(function (module) {
+                    dfd.resolve(system.resolveObject(module));
+                }).fail(function(err){
+                    system.error('Failed to load dialog module (' + objOrModuleId + '). Details: ' + err.message);
+                });
+            } else {
+                dfd.resolve(objOrModuleId);
+            }
+        }).promise();
+    }
+
+    /**
+     * @class DialogModule
+     * @static
+     */
+    dialog = {
+        /**
+         * The constructor function used to create message boxes.
+         * @property {MessageBox} MessageBox
+         */
+        MessageBox:MessageBox,
+        /**
+         * The css zIndex that the last dialog was displayed at.
+         * @property {number} currentZIndex
+         */
+        currentZIndex: 1050,
+        /**
+         * Gets the next css zIndex at which a dialog should be displayed.
+         * @method getNextZIndex
+         * @return {number} The next usable zIndex.
+         */
+        getNextZIndex: function () {
+            return ++this.currentZIndex;
+        },
+        /**
+         * Determines whether or not there are any dialogs open.
+         * @method isOpen
+         * @return {boolean} True if a dialog is open. false otherwise.
+         */
+        isOpen: function() {
+            return dialogCount > 0;
+        },
+        /**
+         * Gets the dialog context by name or returns the default context if no name is specified.
+         * @method getContext
+         * @param {string} [name] The name of the context to retrieve.
+         * @return {DialogContext} True context.
+         */
+        getContext: function(name) {
+            return contexts[name || 'default'];
+        },
+        /**
+         * Adds (or replaces) a dialog context.
+         * @method addContext
+         * @param {string} name The name of the context to add.
+         * @param {DialogContext} dialogContext The context to add.
+         */
+        addContext: function(name, dialogContext) {
+            dialogContext.name = name;
+            contexts[name] = dialogContext;
+
+            var helperName = 'show' + name.substr(0, 1).toUpperCase() + name.substr(1);
+            this[helperName] = function (obj, activationData) {
+                return this.show(obj, activationData, name);
+            };
+        },
+        createCompositionSettings: function(obj, dialogContext) {
+            var settings = {
+                model:obj,
+                activate:false,
+                transition: false
+            };
+
+            if (dialogContext.attached) {
+                settings.attached = dialogContext.attached;
+            }
+
+            if (dialogContext.compositionComplete) {
+                settings.compositionComplete = dialogContext.compositionComplete;
+            }
+
+            return settings;
+        },
+        /**
+         * Gets the dialog model that is associated with the specified object.
+         * @method getDialog
+         * @param {object} obj The object for whom to retrieve the dialog.
+         * @return {Dialog} The dialog model.
+         */
+        getDialog:function(obj){
+            if(obj){
+                return obj.__dialog__;
+            }
+
+            return undefined;
+        },
+        /**
+         * Closes the dialog associated with the specified object.
+         * @method close
+         * @param {object} obj The object whose dialog should be closed.
+         * @param {object} results* The results to return back to the dialog caller after closing.
+         */
+        close:function(obj){
+            var theDialog = this.getDialog(obj);
+            if(theDialog){
+                var rest = Array.prototype.slice.call(arguments, 1);
+                theDialog.close.apply(theDialog, rest);
+            }
+        },
+        /**
+         * Shows a dialog.
+         * @method show
+         * @param {object|string} obj The object (or moduleId) to display as a dialog.
+         * @param {object} [activationData] The data that should be passed to the object upon activation.
+         * @param {string} [context] The name of the dialog context to use. Uses the default context if none is specified.
+         * @return {Promise} A promise that resolves when the dialog is closed and returns any data passed at the time of closing.
+         */
+        show: function(obj, activationData, context) {
+            var that = this;
+            var dialogContext = contexts[context || 'default'];
+
+            return system.defer(function(dfd) {
+                ensureDialogInstance(obj).then(function(instance) {
+                    var dialogActivator = activator.create();
+
+                    dialogActivator.activateItem(instance, activationData).then(function (success) {
+                        if (success) {
+                            var theDialog = instance.__dialog__ = {
+                                owner: instance,
+                                context: dialogContext,
+                                activator: dialogActivator,
+                                close: function () {
+                                    var args = arguments;
+                                    dialogActivator.deactivateItem(instance, true).then(function (closeSuccess) {
+                                        if (closeSuccess) {
+                                            dialogCount--;
+                                            dialogContext.removeHost(theDialog);
+                                            delete instance.__dialog__;
+
+                                            if (args.length === 0) {
+                                                dfd.resolve();
+                                            } else if (args.length === 1) {
+                                                dfd.resolve(args[0]);
+                                            } else {
+                                                dfd.resolve.apply(dfd, args);
+                                            }
+                                        }
+                                    });
+                                }
+                            };
+
+                            theDialog.settings = that.createCompositionSettings(instance, dialogContext);
+                            dialogContext.addHost(theDialog);
+
+                            dialogCount++;
+                            composition.compose(theDialog.host, theDialog.settings);
+                        } else {
+                            dfd.resolve(false);
+                        }
+                    });
+                });
+            }).promise();
+        },
+        /**
+         * Shows a message box.
+         * @method showMessage
+         * @param {string} message The message to display in the dialog.
+         * @param {string} [title] The title message.
+         * @param {string[]} [options] The options to provide to the user.
+         * @return {Promise} A promise that resolves when the message box is closed and returns the selected option.
+         */
+        showMessage:function(message, title, options){
+            if(system.isString(this.MessageBox)){
+                return dialog.show(this.MessageBox, [
+                    message,
+                    title || MessageBox.defaultTitle,
+                    options || MessageBox.defaultOptions
+                ]);
+            }
+
+            return dialog.show(new this.MessageBox(message, title, options));
+        },
+        /**
+         * Installs this module into Durandal; called by the framework. Adds `app.showDialog` and `app.showMessage` convenience methods.
+         * @method install
+         * @param {object} [config] Add a `messageBox` property to supply a custom message box constructor. Add a `messageBoxView` property to supply custom view markup for the built-in message box.
+         */
+        install:function(config){
+            app.showDialog = function(obj, activationData, context) {
+                return dialog.show(obj, activationData, context);
+            };
+
+            app.showMessage = function(message, title, options) {
+                return dialog.showMessage(message, title, options);
+            };
+
+            if(config.messageBox){
+                dialog.MessageBox = config.messageBox;
+            }
+
+            if(config.messageBoxView){
+                dialog.MessageBox.prototype.getView = function(){
+                    return config.messageBoxView;
+                };
+            }
+        }
+    };
+
+    /**
+     * @class DialogContext
+     */
+    dialog.addContext('default', {
+        blockoutOpacity: .2,
+        removeDelay: 200,
+        /**
+         * In this function, you are expected to add a DOM element to the tree which will serve as the "host" for the modal's composed view. You must add a property called host to the modalWindow object which references the dom element. It is this host which is passed to the composition module.
+         * @method addHost
+         * @param {Dialog} theDialog The dialog model.
+         */
+        addHost: function(theDialog) {
+            var body = $('body');
+            var blockout = $('<div class="modalBlockout"></div>')
+                .css({ 'z-index': dialog.getNextZIndex(), 'opacity': this.blockoutOpacity })
+                .appendTo(body);
+
+            var host = $('<div class="modalHost"></div>')
+                .css({ 'z-index': dialog.getNextZIndex() })
+                .appendTo(body);
+
+            theDialog.host = host.get(0);
+            theDialog.blockout = blockout.get(0);
+
+            if (!dialog.isOpen()) {
+                theDialog.oldBodyMarginRight = body.css("margin-right");
+                theDialog.oldInlineMarginRight = body.get(0).style.marginRight;
+
+                var html = $("html");
+                var oldBodyOuterWidth = body.outerWidth(true);
+                var oldScrollTop = html.scrollTop();
+                $("html").css("overflow-y", "hidden");
+                var newBodyOuterWidth = $("body").outerWidth(true);
+                body.css("margin-right", (newBodyOuterWidth - oldBodyOuterWidth + parseInt(theDialog.oldBodyMarginRight, 10)) + "px");
+                html.scrollTop(oldScrollTop); // necessary for Firefox
+            }
+        },
+        /**
+         * This function is expected to remove any DOM machinery associated with the specified dialog and do any other necessary cleanup.
+         * @method removeHost
+         * @param {Dialog} theDialog The dialog model.
+         */
+        removeHost: function(theDialog) {
+            $(theDialog.host).css('opacity', 0);
+            $(theDialog.blockout).css('opacity', 0);
+
+            setTimeout(function() {
+                ko.removeNode(theDialog.host);
+                ko.removeNode(theDialog.blockout);
+            }, this.removeDelay);
+
+            if (!dialog.isOpen()) {
+                var html = $("html");
+                var oldScrollTop = html.scrollTop(); // necessary for Firefox.
+                html.css("overflow-y", "").scrollTop(oldScrollTop);
+
+                if(theDialog.oldInlineMarginRight) {
+                    $("body").css("margin-right", theDialog.oldBodyMarginRight);
+                } else {
+                    $("body").css("margin-right", '');
+                }
+            }
+        },
+        attached: function (view) {
+            //To prevent flickering in IE8, we set visibility to hidden first, and later restore it
+            $(view).css("visibility", "hidden");
+        },
+        /**
+         * This function is called after the modal is fully composed into the DOM, allowing your implementation to do any final modifications, such as positioning or animation. You can obtain the original dialog object by using `getDialog` on context.model.
+         * @method compositionComplete
+         * @param {DOMElement} child The dialog view.
+         * @param {DOMElement} parent The parent view.
+         * @param {object} context The composition context.
+         */
+        compositionComplete: function (child, parent, context) {
+            var theDialog = dialog.getDialog(context.model);
+            var $child = $(child);
+            var loadables = $child.find("img").filter(function () {
+                //Remove images with known width and height
+                var $this = $(this);
+                return !(this.style.width && this.style.height) && !($this.attr("width") && $this.attr("height"));
+            });
+
+            $child.data("predefinedWidth", $child.get(0).style.width);
+
+            var setDialogPosition = function () {
+                //Setting a short timeout is need in IE8, otherwise we could do this straight away
+                setTimeout(function () {
+                    //We will clear and then set width for dialogs without width set 
+                    if (!$child.data("predefinedWidth")) {
+                        $child.css({ width: '' }); //Reset width
+                    }
+                    var width = $child.outerWidth(false);
+                    var height = $child.outerHeight(false);
+                    var windowHeight = $(window).height();
+                    var constrainedHeight = Math.min(height, windowHeight);
+
+                    $child.css({
+                        'margin-top': (-constrainedHeight / 2).toString() + 'px',
+                        'margin-left': (-width / 2).toString() + 'px'
+                    });
+
+                    if (!$child.data("predefinedWidth")) {
+                        //Ensure the correct width after margin-left has been set
+                        $child.outerWidth(width);
+                    }
+
+                    if (height > windowHeight) {
+                        $child.css("overflow-y", "auto");
+                    } else {
+                        $child.css("overflow-y", "");
+                    }
+
+                    $(theDialog.host).css('opacity', 1);
+                    $child.css("visibility", "visible");
+
+                    $child.find('.autofocus').first().focus();
+                }, 1);
+            };
+
+            setDialogPosition();
+            loadables.load(setDialogPosition);
+
+            if ($child.hasClass('autoclose')) {
+                $(theDialog.blockout).click(function () {
+                    theDialog.close();
+                });
+            }
+        }
+    });
+
+    return dialog;
+});
+
 /**
  * Durandal 2.0.1 Copyright (c) 2012 Blue Spire Consulting, Inc. All Rights Reserved.
  * Available via the MIT license.
@@ -13685,686 +14286,6 @@ define('plugins/router',['durandal/system', 'durandal/app', 'durandal/activator'
     return rootRouter;
 });
 
-define('viewmodels/shell',['plugins/router', 'durandal/app'], function (router, app) {
-    return {
-        router: router,
-        search: function() {
-            //It's really easy to show a message box.
-            //You can add custom options too. Also, it returns a promise for the user's response.
-            app.showMessage('Search not yet implemented...');
-        },
-        activate: function () {
-            router.map([
-                { route: '', title:'Welcome', moduleId: 'viewmodels/welcome', nav: true },
-                { route: 'flickr', moduleId: 'viewmodels/flickr', nav: true }
-            ]).buildNavigationModel();
-            
-            return router.activate();
-        }
-    };
-});
-define('viewmodels/welcome',[],function() {
-    var ctor = function () {
-        this.displayName = 'Welcome to the Durandal Starter Kit!';
-        this.description = 'Durandal is a cross-device, cross-platform client framework written in JavaScript and designed to make Single Page Applications (SPAs) easy to create and maintain.';
-        this.features = [
-            'Clean MV* Architecture',
-            'JS & HTML Modularity',
-            'Simple App Lifecycle',
-            'Eventing, Modals, Message Boxes, etc.',
-            'Navigation & Screen State Management',
-            'Consistent Async Programming w/ Promises',
-            'App Bundling and Optimization',
-            'Use any Backend Technology',
-            'Built on top of jQuery, Knockout & RequireJS',
-            'Integrates with other libraries such as SammyJS & Bootstrap',
-            'Make jQuery & Bootstrap widgets templatable and bindable (or build your own widgets).'
-        ];
-    };
-
-    //Note: This module exports a function. That means that you, the developer, can create multiple instances.
-    //This pattern is also recognized by Durandal so that it can create instances on demand.
-    //If you wish to create a singleton, you should export an object instead of a function.
-    //See the "flickr" module for an example of object export.
-
-    return ctor;
-});
-/**
- * Durandal 2.0.1 Copyright (c) 2012 Blue Spire Consulting, Inc. All Rights Reserved.
- * Available via the MIT license.
- * see: http://durandaljs.com or https://github.com/BlueSpire/Durandal for details.
- */
-/**
- * Layers the widget sugar on top of the composition system.
- * @module widget
- * @requires system
- * @requires composition
- * @requires jquery
- * @requires knockout
- */
-define('plugins/widget',['durandal/system', 'durandal/composition', 'jquery', 'knockout'], function(system, composition, $, ko) {
-    var kindModuleMaps = {},
-        kindViewMaps = {},
-        bindableSettings = ['model', 'view', 'kind'],
-        widgetDataKey = 'durandal-widget-data';
-
-    function extractParts(element, settings){
-        var data = ko.utils.domData.get(element, widgetDataKey);
-
-        if(!data){
-            data = {
-                parts:composition.cloneNodes(ko.virtualElements.childNodes(element))
-            };
-
-            ko.virtualElements.emptyNode(element);
-            ko.utils.domData.set(element, widgetDataKey, data);
-        }
-
-        settings.parts = data.parts;
-    }
-
-    /**
-     * @class WidgetModule
-     * @static
-     */
-    var widget = {
-        getSettings: function(valueAccessor) {
-            var settings = ko.utils.unwrapObservable(valueAccessor()) || {};
-
-            if (system.isString(settings)) {
-                return { kind: settings };
-            }
-
-            for (var attrName in settings) {
-                if (ko.utils.arrayIndexOf(bindableSettings, attrName) != -1) {
-                    settings[attrName] = ko.utils.unwrapObservable(settings[attrName]);
-                } else {
-                    settings[attrName] = settings[attrName];
-                }
-            }
-
-            return settings;
-        },
-        /**
-         * Creates a ko binding handler for the specified kind.
-         * @method registerKind
-         * @param {string} kind The kind to create a custom binding handler for.
-         */
-        registerKind: function(kind) {
-            ko.bindingHandlers[kind] = {
-                init: function() {
-                    return { controlsDescendantBindings: true };
-                },
-                update: function(element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
-                    var settings = widget.getSettings(valueAccessor);
-                    settings.kind = kind;
-                    extractParts(element, settings);
-                    widget.create(element, settings, bindingContext, true);
-                }
-            };
-
-            ko.virtualElements.allowedBindings[kind] = true;
-            composition.composeBindings.push(kind + ':');
-        },
-        /**
-         * Maps views and module to the kind identifier if a non-standard pattern is desired.
-         * @method mapKind
-         * @param {string} kind The kind name.
-         * @param {string} [viewId] The unconventional view id to map the kind to.
-         * @param {string} [moduleId] The unconventional module id to map the kind to.
-         */
-        mapKind: function(kind, viewId, moduleId) {
-            if (viewId) {
-                kindViewMaps[kind] = viewId;
-            }
-
-            if (moduleId) {
-                kindModuleMaps[kind] = moduleId;
-            }
-        },
-        /**
-         * Maps a kind name to it's module id. First it looks up a custom mapped kind, then falls back to `convertKindToModulePath`.
-         * @method mapKindToModuleId
-         * @param {string} kind The kind name.
-         * @return {string} The module id.
-         */
-        mapKindToModuleId: function(kind) {
-            return kindModuleMaps[kind] || widget.convertKindToModulePath(kind);
-        },
-        /**
-         * Converts a kind name to it's module path. Used to conventionally map kinds who aren't explicitly mapped through `mapKind`.
-         * @method convertKindToModulePath
-         * @param {string} kind The kind name.
-         * @return {string} The module path.
-         */
-        convertKindToModulePath: function(kind) {
-            return 'widgets/' + kind + '/viewmodel';
-        },
-        /**
-         * Maps a kind name to it's view id. First it looks up a custom mapped kind, then falls back to `convertKindToViewPath`.
-         * @method mapKindToViewId
-         * @param {string} kind The kind name.
-         * @return {string} The view id.
-         */
-        mapKindToViewId: function(kind) {
-            return kindViewMaps[kind] || widget.convertKindToViewPath(kind);
-        },
-        /**
-         * Converts a kind name to it's view id. Used to conventionally map kinds who aren't explicitly mapped through `mapKind`.
-         * @method convertKindToViewPath
-         * @param {string} kind The kind name.
-         * @return {string} The view id.
-         */
-        convertKindToViewPath: function(kind) {
-            return 'widgets/' + kind + '/view';
-        },
-        createCompositionSettings: function(element, settings) {
-            if (!settings.model) {
-                settings.model = this.mapKindToModuleId(settings.kind);
-            }
-
-            if (!settings.view) {
-                settings.view = this.mapKindToViewId(settings.kind);
-            }
-
-            settings.preserveContext = true;
-            settings.activate = true;
-            settings.activationData = settings;
-            settings.mode = 'templated';
-
-            return settings;
-        },
-        /**
-         * Creates a widget.
-         * @method create
-         * @param {DOMElement} element The DOMElement or knockout virtual element that serves as the target element for the widget.
-         * @param {object} settings The widget settings.
-         * @param {object} [bindingContext] The current binding context.
-         */
-        create: function(element, settings, bindingContext, fromBinding) {
-            if(!fromBinding){
-                settings = widget.getSettings(function() { return settings; }, element);
-            }
-
-            var compositionSettings = widget.createCompositionSettings(element, settings);
-
-            composition.compose(element, compositionSettings, bindingContext);
-        },
-        /**
-         * Installs the widget module by adding the widget binding handler and optionally registering kinds.
-         * @method install
-         * @param {object} config The module config. Add a `kinds` array with the names of widgets to automatically register. You can also specify a `bindingName` if you wish to use another name for the widget binding, such as "control" for example.
-         */
-        install:function(config){
-            config.bindingName = config.bindingName || 'widget';
-
-            if(config.kinds){
-                var toRegister = config.kinds;
-
-                for(var i = 0; i < toRegister.length; i++){
-                    widget.registerKind(toRegister[i]);
-                }
-            }
-
-            ko.bindingHandlers[config.bindingName] = {
-                init: function() {
-                    return { controlsDescendantBindings: true };
-                },
-                update: function(element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
-                    var settings = widget.getSettings(valueAccessor);
-                    extractParts(element, settings);
-                    widget.create(element, settings, bindingContext, true);
-                }
-            };
-
-            composition.composeBindings.push(config.bindingName + ':');
-            ko.virtualElements.allowedBindings[config.bindingName] = true;
-        }
-    };
-
-    return widget;
-});
-
-/**
- * Durandal 2.0.1 Copyright (c) 2012 Blue Spire Consulting, Inc. All Rights Reserved.
- * Available via the MIT license.
- * see: http://durandaljs.com or https://github.com/BlueSpire/Durandal for details.
- */
-/**
- * The dialog module enables the display of message boxes, custom modal dialogs and other overlays or slide-out UI abstractions. Dialogs are constructed by the composition system which interacts with a user defined dialog context. The dialog module enforced the activator lifecycle.
- * @module dialog
- * @requires system
- * @requires app
- * @requires composition
- * @requires activator
- * @requires viewEngine
- * @requires jquery
- * @requires knockout
- */
-define('plugins/dialog',['durandal/system', 'durandal/app', 'durandal/composition', 'durandal/activator', 'durandal/viewEngine', 'jquery', 'knockout'], function (system, app, composition, activator, viewEngine, $, ko) {
-    var contexts = {},
-        dialogCount = 0,
-        dialog;
-
-    /**
-     * Models a message box's message, title and options.
-     * @class MessageBox
-     */
-    var MessageBox = function(message, title, options) {
-        this.message = message;
-        this.title = title || MessageBox.defaultTitle;
-        this.options = options || MessageBox.defaultOptions;
-    };
-
-    /**
-     * Selects an option and closes the message box, returning the selected option through the dialog system's promise.
-     * @method selectOption
-     * @param {string} dialogResult The result to select.
-     */
-    MessageBox.prototype.selectOption = function (dialogResult) {
-        dialog.close(this, dialogResult);
-    };
-
-    /**
-     * Provides the view to the composition system.
-     * @method getView
-     * @return {DOMElement} The view of the message box.
-     */
-    MessageBox.prototype.getView = function(){
-        return viewEngine.processMarkup(MessageBox.defaultViewMarkup);
-    };
-
-    /**
-     * Configures a custom view to use when displaying message boxes.
-     * @method setViewUrl
-     * @param {string} viewUrl The view url relative to the base url which the view locator will use to find the message box's view.
-     * @static
-     */
-    MessageBox.setViewUrl = function(viewUrl){
-        delete MessageBox.prototype.getView;
-        MessageBox.prototype.viewUrl = viewUrl;
-    };
-
-    /**
-     * The title to be used for the message box if one is not provided.
-     * @property {string} defaultTitle
-     * @default Application
-     * @static
-     */
-    MessageBox.defaultTitle = app.title || 'Application';
-
-    /**
-     * The options to display in the message box of none are specified.
-     * @property {string[]} defaultOptions
-     * @default ['Ok']
-     * @static
-     */
-    MessageBox.defaultOptions = ['Ok'];
-
-    /**
-     * The markup for the message box's view.
-     * @property {string} defaultViewMarkup
-     * @static
-     */
-    MessageBox.defaultViewMarkup = [
-        '<div data-view="plugins/messageBox" class="messageBox">',
-            '<div class="modal-header">',
-                '<h3 data-bind="text: title"></h3>',
-            '</div>',
-            '<div class="modal-body">',
-                '<p class="message" data-bind="text: message"></p>',
-            '</div>',
-            '<div class="modal-footer" data-bind="foreach: options">',
-                '<button class="btn" data-bind="click: function () { $parent.selectOption($data); }, text: $data, css: { \'btn-primary\': $index() == 0, autofocus: $index() == 0 }"></button>',
-            '</div>',
-        '</div>'
-    ].join('\n');
-
-    function ensureDialogInstance(objOrModuleId) {
-        return system.defer(function(dfd) {
-            if (system.isString(objOrModuleId)) {
-                system.acquire(objOrModuleId).then(function (module) {
-                    dfd.resolve(system.resolveObject(module));
-                }).fail(function(err){
-                    system.error('Failed to load dialog module (' + objOrModuleId + '). Details: ' + err.message);
-                });
-            } else {
-                dfd.resolve(objOrModuleId);
-            }
-        }).promise();
-    }
-
-    /**
-     * @class DialogModule
-     * @static
-     */
-    dialog = {
-        /**
-         * The constructor function used to create message boxes.
-         * @property {MessageBox} MessageBox
-         */
-        MessageBox:MessageBox,
-        /**
-         * The css zIndex that the last dialog was displayed at.
-         * @property {number} currentZIndex
-         */
-        currentZIndex: 1050,
-        /**
-         * Gets the next css zIndex at which a dialog should be displayed.
-         * @method getNextZIndex
-         * @return {number} The next usable zIndex.
-         */
-        getNextZIndex: function () {
-            return ++this.currentZIndex;
-        },
-        /**
-         * Determines whether or not there are any dialogs open.
-         * @method isOpen
-         * @return {boolean} True if a dialog is open. false otherwise.
-         */
-        isOpen: function() {
-            return dialogCount > 0;
-        },
-        /**
-         * Gets the dialog context by name or returns the default context if no name is specified.
-         * @method getContext
-         * @param {string} [name] The name of the context to retrieve.
-         * @return {DialogContext} True context.
-         */
-        getContext: function(name) {
-            return contexts[name || 'default'];
-        },
-        /**
-         * Adds (or replaces) a dialog context.
-         * @method addContext
-         * @param {string} name The name of the context to add.
-         * @param {DialogContext} dialogContext The context to add.
-         */
-        addContext: function(name, dialogContext) {
-            dialogContext.name = name;
-            contexts[name] = dialogContext;
-
-            var helperName = 'show' + name.substr(0, 1).toUpperCase() + name.substr(1);
-            this[helperName] = function (obj, activationData) {
-                return this.show(obj, activationData, name);
-            };
-        },
-        createCompositionSettings: function(obj, dialogContext) {
-            var settings = {
-                model:obj,
-                activate:false,
-                transition: false
-            };
-
-            if (dialogContext.attached) {
-                settings.attached = dialogContext.attached;
-            }
-
-            if (dialogContext.compositionComplete) {
-                settings.compositionComplete = dialogContext.compositionComplete;
-            }
-
-            return settings;
-        },
-        /**
-         * Gets the dialog model that is associated with the specified object.
-         * @method getDialog
-         * @param {object} obj The object for whom to retrieve the dialog.
-         * @return {Dialog} The dialog model.
-         */
-        getDialog:function(obj){
-            if(obj){
-                return obj.__dialog__;
-            }
-
-            return undefined;
-        },
-        /**
-         * Closes the dialog associated with the specified object.
-         * @method close
-         * @param {object} obj The object whose dialog should be closed.
-         * @param {object} results* The results to return back to the dialog caller after closing.
-         */
-        close:function(obj){
-            var theDialog = this.getDialog(obj);
-            if(theDialog){
-                var rest = Array.prototype.slice.call(arguments, 1);
-                theDialog.close.apply(theDialog, rest);
-            }
-        },
-        /**
-         * Shows a dialog.
-         * @method show
-         * @param {object|string} obj The object (or moduleId) to display as a dialog.
-         * @param {object} [activationData] The data that should be passed to the object upon activation.
-         * @param {string} [context] The name of the dialog context to use. Uses the default context if none is specified.
-         * @return {Promise} A promise that resolves when the dialog is closed and returns any data passed at the time of closing.
-         */
-        show: function(obj, activationData, context) {
-            var that = this;
-            var dialogContext = contexts[context || 'default'];
-
-            return system.defer(function(dfd) {
-                ensureDialogInstance(obj).then(function(instance) {
-                    var dialogActivator = activator.create();
-
-                    dialogActivator.activateItem(instance, activationData).then(function (success) {
-                        if (success) {
-                            var theDialog = instance.__dialog__ = {
-                                owner: instance,
-                                context: dialogContext,
-                                activator: dialogActivator,
-                                close: function () {
-                                    var args = arguments;
-                                    dialogActivator.deactivateItem(instance, true).then(function (closeSuccess) {
-                                        if (closeSuccess) {
-                                            dialogCount--;
-                                            dialogContext.removeHost(theDialog);
-                                            delete instance.__dialog__;
-
-                                            if (args.length === 0) {
-                                                dfd.resolve();
-                                            } else if (args.length === 1) {
-                                                dfd.resolve(args[0]);
-                                            } else {
-                                                dfd.resolve.apply(dfd, args);
-                                            }
-                                        }
-                                    });
-                                }
-                            };
-
-                            theDialog.settings = that.createCompositionSettings(instance, dialogContext);
-                            dialogContext.addHost(theDialog);
-
-                            dialogCount++;
-                            composition.compose(theDialog.host, theDialog.settings);
-                        } else {
-                            dfd.resolve(false);
-                        }
-                    });
-                });
-            }).promise();
-        },
-        /**
-         * Shows a message box.
-         * @method showMessage
-         * @param {string} message The message to display in the dialog.
-         * @param {string} [title] The title message.
-         * @param {string[]} [options] The options to provide to the user.
-         * @return {Promise} A promise that resolves when the message box is closed and returns the selected option.
-         */
-        showMessage:function(message, title, options){
-            if(system.isString(this.MessageBox)){
-                return dialog.show(this.MessageBox, [
-                    message,
-                    title || MessageBox.defaultTitle,
-                    options || MessageBox.defaultOptions
-                ]);
-            }
-
-            return dialog.show(new this.MessageBox(message, title, options));
-        },
-        /**
-         * Installs this module into Durandal; called by the framework. Adds `app.showDialog` and `app.showMessage` convenience methods.
-         * @method install
-         * @param {object} [config] Add a `messageBox` property to supply a custom message box constructor. Add a `messageBoxView` property to supply custom view markup for the built-in message box.
-         */
-        install:function(config){
-            app.showDialog = function(obj, activationData, context) {
-                return dialog.show(obj, activationData, context);
-            };
-
-            app.showMessage = function(message, title, options) {
-                return dialog.showMessage(message, title, options);
-            };
-
-            if(config.messageBox){
-                dialog.MessageBox = config.messageBox;
-            }
-
-            if(config.messageBoxView){
-                dialog.MessageBox.prototype.getView = function(){
-                    return config.messageBoxView;
-                };
-            }
-        }
-    };
-
-    /**
-     * @class DialogContext
-     */
-    dialog.addContext('default', {
-        blockoutOpacity: .2,
-        removeDelay: 200,
-        /**
-         * In this function, you are expected to add a DOM element to the tree which will serve as the "host" for the modal's composed view. You must add a property called host to the modalWindow object which references the dom element. It is this host which is passed to the composition module.
-         * @method addHost
-         * @param {Dialog} theDialog The dialog model.
-         */
-        addHost: function(theDialog) {
-            var body = $('body');
-            var blockout = $('<div class="modalBlockout"></div>')
-                .css({ 'z-index': dialog.getNextZIndex(), 'opacity': this.blockoutOpacity })
-                .appendTo(body);
-
-            var host = $('<div class="modalHost"></div>')
-                .css({ 'z-index': dialog.getNextZIndex() })
-                .appendTo(body);
-
-            theDialog.host = host.get(0);
-            theDialog.blockout = blockout.get(0);
-
-            if (!dialog.isOpen()) {
-                theDialog.oldBodyMarginRight = body.css("margin-right");
-                theDialog.oldInlineMarginRight = body.get(0).style.marginRight;
-
-                var html = $("html");
-                var oldBodyOuterWidth = body.outerWidth(true);
-                var oldScrollTop = html.scrollTop();
-                $("html").css("overflow-y", "hidden");
-                var newBodyOuterWidth = $("body").outerWidth(true);
-                body.css("margin-right", (newBodyOuterWidth - oldBodyOuterWidth + parseInt(theDialog.oldBodyMarginRight, 10)) + "px");
-                html.scrollTop(oldScrollTop); // necessary for Firefox
-            }
-        },
-        /**
-         * This function is expected to remove any DOM machinery associated with the specified dialog and do any other necessary cleanup.
-         * @method removeHost
-         * @param {Dialog} theDialog The dialog model.
-         */
-        removeHost: function(theDialog) {
-            $(theDialog.host).css('opacity', 0);
-            $(theDialog.blockout).css('opacity', 0);
-
-            setTimeout(function() {
-                ko.removeNode(theDialog.host);
-                ko.removeNode(theDialog.blockout);
-            }, this.removeDelay);
-
-            if (!dialog.isOpen()) {
-                var html = $("html");
-                var oldScrollTop = html.scrollTop(); // necessary for Firefox.
-                html.css("overflow-y", "").scrollTop(oldScrollTop);
-
-                if(theDialog.oldInlineMarginRight) {
-                    $("body").css("margin-right", theDialog.oldBodyMarginRight);
-                } else {
-                    $("body").css("margin-right", '');
-                }
-            }
-        },
-        attached: function (view) {
-            //To prevent flickering in IE8, we set visibility to hidden first, and later restore it
-            $(view).css("visibility", "hidden");
-        },
-        /**
-         * This function is called after the modal is fully composed into the DOM, allowing your implementation to do any final modifications, such as positioning or animation. You can obtain the original dialog object by using `getDialog` on context.model.
-         * @method compositionComplete
-         * @param {DOMElement} child The dialog view.
-         * @param {DOMElement} parent The parent view.
-         * @param {object} context The composition context.
-         */
-        compositionComplete: function (child, parent, context) {
-            var theDialog = dialog.getDialog(context.model);
-            var $child = $(child);
-            var loadables = $child.find("img").filter(function () {
-                //Remove images with known width and height
-                var $this = $(this);
-                return !(this.style.width && this.style.height) && !($this.attr("width") && $this.attr("height"));
-            });
-
-            $child.data("predefinedWidth", $child.get(0).style.width);
-
-            var setDialogPosition = function () {
-                //Setting a short timeout is need in IE8, otherwise we could do this straight away
-                setTimeout(function () {
-                    //We will clear and then set width for dialogs without width set 
-                    if (!$child.data("predefinedWidth")) {
-                        $child.css({ width: '' }); //Reset width
-                    }
-                    var width = $child.outerWidth(false);
-                    var height = $child.outerHeight(false);
-                    var windowHeight = $(window).height();
-                    var constrainedHeight = Math.min(height, windowHeight);
-
-                    $child.css({
-                        'margin-top': (-constrainedHeight / 2).toString() + 'px',
-                        'margin-left': (-width / 2).toString() + 'px'
-                    });
-
-                    if (!$child.data("predefinedWidth")) {
-                        //Ensure the correct width after margin-left has been set
-                        $child.outerWidth(width);
-                    }
-
-                    if (height > windowHeight) {
-                        $child.css("overflow-y", "auto");
-                    } else {
-                        $child.css("overflow-y", "");
-                    }
-
-                    $(theDialog.host).css('opacity', 1);
-                    $child.css("visibility", "visible");
-
-                    $child.find('.autofocus').first().focus();
-                }, 1);
-            };
-
-            setDialogPosition();
-            loadables.load(setDialogPosition);
-
-            if ($child.hasClass('autoclose')) {
-                $(theDialog.blockout).click(function () {
-                    theDialog.close();
-                });
-            }
-        }
-    });
-
-    return dialog;
-});
-
 /**
  * Durandal 2.0.1 Copyright (c) 2012 Blue Spire Consulting, Inc. All Rights Reserved.
  * Available via the MIT license.
@@ -14823,16 +14744,16 @@ define('text',['module'], function (module) {
     return text;
 });
 
-define('text!views/detail.html',[],function () { return '<div class="messageBox autoclose" style="max-width: 425px">\r\n    <div class="modal-header">\r\n        <h3>Details</h3>\r\n    </div>\r\n    <div class="modal-body">\r\n        <p data-bind="html: description"></p>\r\n    </div>\r\n</div>';});
+define('text!views\detail.html',[],function () { return '<div class="messageBox autoclose" style="max-width: 425px">\r\n    <div class="modal-header">\r\n        <h3>Details</h3>\r\n    </div>\r\n    <div class="modal-body">\r\n        <p data-bind="html: description"></p>\r\n    </div>\r\n</div>';});
 
 
-define('text!views/flickr.html',[],function () { return '<section>\r\n    <h2 data-bind="html: displayName"></h2>\r\n    <div class="row-fluid">\r\n        <ul class="thumbnails" data-bind="foreach: images">\r\n            <li>\r\n                <a href="#" class="thumbnail" data-bind="click:$parent.select">\r\n                    <img style="width: 260px; height: 180px;" data-bind="attr: { src: media.m }"/>\r\n                </a>\r\n            </li>\r\n        </ul>\r\n    </div>\r\n</section>';});
+define('text!views\flickr.html',[],function () { return '<section>\r\n    <h2 data-bind="html: displayName"></h2>\r\n    <div class="row-fluid">\r\n        <ul class="thumbnails" data-bind="foreach: images">\r\n            <li>\r\n                <a href="#" class="thumbnail" data-bind="click:$parent.select">\r\n                    <img style="width: 260px; height: 180px;" data-bind="attr: { src: media.m }"/>\r\n                </a>\r\n            </li>\r\n        </ul>\r\n    </div>\r\n</section>';});
 
 
-define('text!views/shell.html',[],function () { return '<div>\r\n    <div class="navbar navbar-fixed-top">\r\n        <div class="navbar-inner">\r\n            <a class="brand" data-bind="attr: { href: router.navigationModel()[0].hash }">\r\n                <i class="icon-home"></i>\r\n                <span>Durandal</span>\r\n            </a>\r\n            <ul class="nav" data-bind="foreach: router.navigationModel">\r\n                <li data-bind="css: { active: isActive }">\r\n                    <a data-bind="attr: { href: hash }, html: title"></a>\r\n                </li>\r\n            </ul>\r\n            <div class="loader pull-right" data-bind="css: { active: router.isNavigating }">\r\n                <i class="icon-spinner icon-2x icon-spin"></i>\r\n            </div>\r\n            <form class="navbar-search pull-right" data-bind="submit:search">\r\n                <input type="text" class="search-query" placeholder="Search">\r\n            </form>\r\n        </div>\r\n    </div>\r\n    \r\n    <div class="container-fluid page-host" data-bind="router: { transition:\'entrance\', cacheViews:true }"></div>\r\n</div>';});
+define('text!views\shell.html',[],function () { return '<div>\r\n    <div class="navbar navbar-fixed-top">\r\n        <div class="navbar-inner">\r\n            <a class="brand" data-bind="attr: { href: router.navigationModel()[0].hash }">\r\n                <i class="icon-home"></i>\r\n                <span>Durandal</span>\r\n            </a>\r\n            <ul class="nav" data-bind="foreach: router.navigationModel">\r\n                <li data-bind="css: { active: isActive }">\r\n                    <a data-bind="attr: { href: hash }, html: title"></a>\r\n                </li>\r\n            </ul>\r\n            <div class="loader pull-right" data-bind="css: { active: router.isNavigating }">\r\n                <i class="icon-spinner icon-2x icon-spin"></i>\r\n            </div>\r\n            <form class="navbar-search pull-right" data-bind="submit:search">\r\n                <input type="text" class="search-query" placeholder="Search">\r\n            </form>\r\n        </div>\r\n    </div>\r\n    \r\n    <div class="container-fluid page-host" data-bind="router: { transition:\'entrance\', cacheViews:true }"></div>\r\n</div>';});
 
 
-define('text!views/welcome.html',[],function () { return '<section>\r\n    <h2 data-bind="html:displayName"></h2>\r\n    <blockquote data-bind="html:description"></blockquote>\r\n    <h3>Features</h3>\r\n    <ul data-bind="foreach: features">\r\n        <li data-bind="html: $data"></li>\r\n    </ul>\r\n    <div class="alert alert-success">\r\n      <h4>Read Me Please</h4>\r\n        For information about this template and for general documenation please visit <a href="http://www.durandaljs.com">the official site</a> and if you can\'t find \r\n        answers to your questions there, we hope you will join our <a href="https://groups.google.com/forum/?fromgroups#!forum/durandaljs">google group</a>.\r\n    </div>\r\n</section>';});
+define('text!views\welcome.html',[],function () { return '<section>\r\n    <h2 data-bind="html:displayName"></h2>\r\n    <blockquote data-bind="html:description"></blockquote>\r\n    <h3>Features</h3>\r\n    <ul data-bind="foreach: features">\r\n        <li data-bind="html: $data"></li>\r\n    </ul>\r\n    <div class="alert alert-success">\r\n      <h4>Read Me Please</h4>\r\n        For information about this template and for general documenation please visit <a href="http://www.durandaljs.com">the official site</a> and if you can\'t find \r\n        answers to your questions there, we hope you will join our <a href="https://groups.google.com/forum/?fromgroups#!forum/durandaljs">google group</a>.\r\n    </div>\r\n</section>';});
 
 
 require(["main"]);
