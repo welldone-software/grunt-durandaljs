@@ -62,33 +62,32 @@ module.exports = function (grunt) {
                     textModules = textFiles.map(relativeToBaseDir).map(function(m){ return 'text!' + m; }),
                     scannedModules = {js: jsModules, text: textModules};
 
-                    return _.flatten([scannedModules.js, options.extraModules || [], scannedModules.text]).filter(options.moduleFilter);
-                })(),
-
+                return _.flatten([scannedModules.js, options.extraModules || [], scannedModules.text]).filter(options.moduleFilter);
+            })(),
 
             insertRequireModules = (function(){
-                    if(typeof(options.require) === 'string' || _.isArray(options.require)){
-                        return  _.flatten([options.require]);
-                    }
-                    else if(options.require === true || (options.almond && options.require !== false)){
-                        return [allModules[0]];
-                    }
-                    return undefined;
-                })();
+                if(typeof(options.require) === 'string' || _.isArray(options.require)){
+                    return  _.flatten([options.require]);
+                }
+                else if(options.require === true || (options.almond && options.require !== false)){
+                    return [allModules[0]];
+                }
+                return undefined;
+            })();
 
 
-           var rjsConfig = {
-                logLevel: options.verbose ? 0 : 4,
-                baseUrl : baseDir,
-                mainConfigFile: mainFile,
-                include : allModules,
-                out: options.output || 'output.' + path.basename(mainFile),
-                optimize: options.minify ? 'uglify2' : 'none',
-                preserveLicenseComments: !options.minify,
-                generateSourceMaps : true,
-                insertRequire : insertRequireModules,
-                wrap: almondWrapper
-            };
+        var rjsConfig = {
+            logLevel: options.verbose ? 0 : 4,
+            baseUrl : baseDir,
+            mainConfigFile: mainFile,
+            include : allModules,
+            out: options.output || 'output.' + path.basename(mainFile),
+            optimize: options.minify ? 'uglify2' : 'none',
+            preserveLicenseComments: !options.minify,
+            generateSourceMaps : true,
+            insertRequire : insertRequireModules,
+            wrap: almondWrapper
+        };
 
         requirejs.optimize(
             rjsConfig,
