@@ -48,7 +48,8 @@ module.exports = function (grunt) {
                 return {
                     start: '(function() {\n' + grunt.file.read(almondPath),
                     end: '}());'
-                }
+                };
+
             })(),
 
             allModules = (function(){
