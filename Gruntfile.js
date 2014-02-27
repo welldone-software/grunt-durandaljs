@@ -15,12 +15,14 @@ var testOptions = {
     baseDir: ['test/fixtures/HTML StarterKit/app', 'test/fixtures/HTML Samples/app'],
     minify: [false, true],
     almond: [false, true],
-    require: [true, 'main', 'main2']
+    require: [true, 'main', 'main2'],
+    extraModules: ['plugins/widget', 'plugins/dialog', 'plugins/router', 'transitions/entrance']
 };
+
+//bower
 
 var generateTestTargets = function(){
     var targets = {};
-
     var testGenerators = [];
 
     var simpleOutput = function(){
@@ -92,10 +94,62 @@ var generateTestTargets = function(){
         });
     };
 
+    var pathTest = function(targets){
+        var testNum = 0,
+            targetName;
+
+        _.each(testOptions.almond, function(almond){
+            testNum++;
+
+            targetName = 'pathTestSimple' + testNum;
+            targets[targetName] = {
+                options:{
+                    baseDir: 'test/fixtures/Simple Bower Project/app',
+                    output: outputTpl({targetName: targetName}),
+                    almond: almond
+                }
+            };
+
+            targetName = 'pathTestMain2' + testNum;
+            targets[targetName] = {
+                options:{
+                    baseDir: 'test/fixtures/Bower Projects/app',
+                    main: 'main2.js',
+                    output: outputTpl({targetName: targetName}),
+                    almond: almond,
+                    require: 'app/main2'
+                }
+            };
+
+            targetName = 'pathTestNested' + testNum;
+            targets[targetName] = {
+                options:{
+                    baseDir: 'test/fixtures/Bower Projects/nested/app3',
+                    main: 'main2.js',
+                    output: outputTpl({targetName: targetName}),
+                    almond: almond,
+                    require: 'nested/app3/main2'
+                }
+            };
+
+            targetName = 'pathTestExternal' + testNum;
+            targets[targetName] = {
+                options:{
+                    baseDir: 'test/fixtures/Bower Projects/external/app',
+                    output: outputTpl({targetName: targetName}),
+                    almond: almond,
+                    extraModules: ['../ext/external-shell-generator']
+                }
+            };
+        });
+    };
+
+    //comment out not needed tests
     testGenerators.push(simpleOutput);
     testGenerators.push(requireOutput);
     testGenerators.push(almondOutput);
     testGenerators.push(minifyTest);
+    testGenerators.push(pathTest);
 
     _.each(testGenerators, function(generator){
         generator(targets);
@@ -130,7 +184,6 @@ module.exports = function(grunt) {
             },
             durandaljs : {
                 options: {
-                    extraModules: ['plugins/widget', 'plugins/dialog', 'plugins/router', 'transitions/entrance']
                 }
             }
         }
