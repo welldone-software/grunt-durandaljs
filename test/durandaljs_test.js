@@ -1,7 +1,9 @@
 'use strict';
 
 var grunt = require('grunt'),
-    _ = require('lodash');
+    _ = require('lodash'),
+    outputTpl = _.template('test/tmp/${targetName}/main.js'),
+    expectedTpl = _.template('test/expected/${targetName}/main.js');
 
 /*
   ======== A Handy Little Nodeunit Reference ========
@@ -23,7 +25,7 @@ var grunt = require('grunt'),
     test.ifError(value)
 */
 
-var optionsToCheck = {
+var targets = {
     almond1 : {
         options: {
             baseDir: 'test/fixtures/HTML StarterKit/app',
@@ -47,8 +49,8 @@ var optionsToCheck = {
     }
 };
 
-_.each(optionsToCheck, function(option, optionName){
-    option.options.output = _.template('test/tmp/${name}/main.js', {name: optionName});
+_.each(targets, function(target, targetName){
+    target.options.output = outputTpl({targetName: targetName});
 });
 
 var initObj = _.clone(
@@ -73,13 +75,13 @@ exports.durandaljs = {
     }
 };
 
-_.forEach(optionsToCheck, function(option, optionName){
-    exports.durandaljs[optionName] = function(test) {
+_.forEach(targets, function(option, targetName){
+    exports.durandaljs[targetName] = function(test) {
         var outputPath = option.options.output;
-        var expectedPath = _.template('test/expected/${name}/main.js', {name: optionName});
+        var expectedPath = expectedTpl({targetName: targetName});
 
         //todo: run task before the test as it only ques them and not immediately runns them.
-        grunt.task.run('durandaljs:'+optionName);
+        grunt.task.run('durandaljs:'+targetName);
 
         test.expect(1);
 
