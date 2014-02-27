@@ -1,9 +1,10 @@
 'use strict';
 
-var grunt = require('grunt'),
+var fs = require('fs'),
+    grunt = require('grunt'),
     _ = require('lodash'),
-    outputTpl = _.template('test/tmp/${targetName}/main.js'),
-    expectedTpl = _.template('test/expected/${targetName}/main.js');
+    outputDirPath = 'test/tmp',
+    expectedDirPath = 'test/expected';
 
 /*
   ======== A Handy Little Nodeunit Reference ========
@@ -25,49 +26,6 @@ var grunt = require('grunt'),
     test.ifError(value)
 */
 
-var targets = {
-    almond1 : {
-        options: {
-            baseDir: 'test/fixtures/HTML StarterKit/app',
-            minify: false,
-            almond: true
-        }
-    },
-    almond2 : {
-        options: {
-            baseDir: 'test/fixtures/HTML StarterKit/app',
-            minify: true,
-            almond: true
-            //todo: test with "almond: '/my/custom/almondpath'"
-        }
-    },
-    require : {
-        options: {
-            baseDir: 'test/fixtures/HTML StarterKit/app',
-            require: ['main']
-        }
-    }
-};
-
-_.each(targets, function(target, targetName){
-    target.options.output = outputTpl({targetName: targetName});
-});
-
-var initObj = _.clone(
-    {
-        durandaljs: optionsToCheck
-    },
-    {
-        durandaljs : {
-            options: {
-                extraModules: ['plugins/widget', 'plugins/dialog', 'plugins/router', 'transitions/entrance']
-            }
-        }
-    }
-);
-
-grunt.config.init(initObj);
-
 exports.durandaljs = {
     setUp: function(done) {
         // setup here if necessary
@@ -75,20 +33,26 @@ exports.durandaljs = {
     }
 };
 
-_.forEach(targets, function(option, targetName){
-    exports.durandaljs[targetName] = function(test) {
-        var outputPath = option.options.output;
-        var expectedPath = expectedTpl({targetName: targetName});
+var expectedDirs = fs.readdirSync(expectedDirPath);
 
-        //todo: run task before the test as it only ques them and not immediately runns them.
-        grunt.task.run('durandaljs:'+targetName);
+_.each(expectedDirs, function(testDirName){
+    exports.durandaljs[testDirName] = function(test) {
+        var expectedTestDirPath = [expectedDirPath, testDirName].join('/'),
+            outputTestDirPath = [outputDirPath, testDirName].join('/');
 
-        test.expect(1);
+        var testFileNames = fs.readdirSync(expectedTestDirPath);
 
-        var actual = grunt.file.read(outputPath);
-        var expected = grunt.file.read(expectedPath);
+        test.expect(testFileNames.length);
 
-        test.equal(actual, expected, 'should describe what the default behavior is.');
+        _.each(testFileNames, function(testFileName){
+            var expectedFilePath = [expectedTestDirPath, testFileName].join('/'),
+                outputFilePath = [outputTestDirPath, testFileName].join('/');
+
+            var expectedFileContent = grunt.file.read(expectedFilePath),
+                outputFileContent = grunt.file.read(outputFilePath);
+
+            test.equal(expectedFileContent, outputFileContent, 'should describe what the default behavior is.');
+        });
 
         test.done();
     };

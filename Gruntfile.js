@@ -8,26 +8,69 @@
 
 'use strict';
 
+var _ = require('lodash'),
+    outputTpl = _.template('test/tmp/${targetName}/main.js');
+
 module.exports = function(grunt) {
 
-    grunt.initConfig({
-        jshint: {
-            all: [
-                'Gruntfile.js',
-                'tasks/*.js',
-                '<%= nodeunit.tests %>',
-            ],
+    var targetsToTest = {
+        almond1 : {
             options: {
-                jshintrc: '.jshintrc',
-            },
+                baseDir: 'test/fixtures/HTML StarterKit/app',
+                minify: false,
+                almond: true
+            }
         },
-        nodeunit: {
-            tests: ['test/*_test.js'],
+        almond2 : {
+            options: {
+                baseDir: 'test/fixtures/HTML StarterKit/app',
+                minify: true,
+                almond: true
+                //todo: test with "almond: '/my/custom/almondpath'"
+            }
         },
-        clean: {
-          tests: ['tmp'],
-        },
+        require : {
+            options: {
+                baseDir: 'test/fixtures/HTML StarterKit/app',
+                require: ['main']
+            }
+        }
+    };
+
+    _.each(targetsToTest, function(target, targetName){
+        target.options.output = outputTpl({targetName: targetName});
     });
+
+    var initObj = _.merge(
+        {
+            durandaljs: targetsToTest
+        },
+        {
+            jshint: {
+                all: [
+                    'Gruntfile.js',
+                    'tasks/*.js',
+                    '<%= nodeunit.tests %>'
+                ],
+                options: {
+                    jshintrc: '.jshintrc'
+                }
+            },
+            nodeunit: {
+                tests: ['test/*_test.js']
+            },
+            clean: {
+                tests: ['tmp']
+            },
+            durandaljs : {
+                options: {
+                    extraModules: ['plugins/widget', 'plugins/dialog', 'plugins/router', 'transitions/entrance']
+                }
+            }
+        }
+    );
+
+    grunt.initConfig(initObj);
 
     grunt.loadTasks('tasks');
 
@@ -35,10 +78,9 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-contrib-clean');
     grunt.loadNpmTasks('grunt-contrib-nodeunit');
 
-    grunt.registerTask('test', ['clean', 'nodeunit']);
+    grunt.registerTask('test', ['clean', 'durandaljs', 'nodeunit']);
 
     grunt.registerTask('default', ['jshint', 'test']);
-
 
 //  // Project configuration.
 //  grunt.initConfig({
