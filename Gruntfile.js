@@ -161,33 +161,25 @@ var generateTestTargets = function(){
 
 module.exports = function(grunt) {
 
-    grunt.initConfig(_.merge(
-        {
-            durandaljs: generateTestTargets()
-        },
-        {
-            jshint: {
-                all: [
-                    'Gruntfile.js',
-                    'tasks/*.js',
-                    '<%= nodeunit.tests %>'
-                ],
-                options: {
-                    jshintrc: '.jshintrc'
-                }
-            },
-            nodeunit: {
-                tests: ['test/*_test.js']
-            },
-            clean: {
-                tests: ['test/tmp']
-            },
-            durandaljs : {
-                options: {
-                }
+    grunt.initConfig({
+        jshint: {
+            all: [
+                'Gruntfile.js',
+                'tasks/*.js',
+                '<%= nodeunit.tests %>'
+            ],
+            options: {
+                jshintrc: '.jshintrc'
             }
-        }
-    ));
+        },
+        nodeunit: {
+            tests: ['test/*_test.js']
+        },
+        clean: {
+            tests: ['test/tmp']
+        },
+        durandaljs : generateTestTargets()
+    });
 
     grunt.loadTasks('tasks');
 
