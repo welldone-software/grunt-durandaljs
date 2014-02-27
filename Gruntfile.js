@@ -11,39 +11,105 @@
 var _ = require('lodash'),
     outputTpl = _.template('test/tmp/${targetName}/main.js');
 
-module.exports = function(grunt) {
+var testOptions = {
+    baseDir: ['test/fixtures/HTML StarterKit/app', 'test/fixtures/HTML Samples/app'],
+    minify: [false, true],
+    almond: [false, true],
+    require: [true, 'main', 'main2']
+};
 
-    var targetsToTest = {
-        almond1 : {
-            options: {
-                baseDir: 'test/fixtures/HTML StarterKit/app',
-                minify: false,
-                almond: true
-            }
-        },
-        almond2 : {
-            options: {
-                baseDir: 'test/fixtures/HTML StarterKit/app',
-                minify: true,
-                almond: true
-                //todo: test with "almond: '/my/custom/almondpath'"
-            }
-        },
-        require : {
-            options: {
-                baseDir: 'test/fixtures/HTML StarterKit/app',
-                require: ['main']
-            }
-        }
+var generateTestTargets = function(){
+    var targets = {};
+
+    var testGenerators = [];
+
+    var simpleOutput = function(){
+        var testNum = 0;
+        _.each(testOptions.baseDir, function(baseDir){
+            testNum++;
+            var targetName = 'simpleOutput' + testNum;
+
+            targets[targetName] = {
+                options: {
+                    baseDir: baseDir,
+                    output: outputTpl({targetName: targetName})
+                }
+            };
+        });
     };
 
-    _.each(targetsToTest, function(target, targetName){
-        target.options.output = outputTpl({targetName: targetName});
+    var requireOutput = function(targets){
+        var testNum = 0;
+        _.each(testOptions.baseDir, function(baseDir){
+            _.each(testOptions.require, function(require){
+                testNum++;
+                var targetName = 'requireOutput' + testNum;
+
+                targets[targetName] = {
+                    options: {
+                        baseDir: baseDir,
+                        output: outputTpl({targetName: targetName}),
+                        require: require
+                    }
+                };
+            });
+        });
+    };
+
+    var almondOutput = function(targets){
+        var testNum = 0;
+        _.each(testOptions.baseDir, function(baseDir){
+            _.each(testOptions.require, function(require){
+                testNum++;
+                var targetName = 'almondOutput' + testNum;
+                targets[targetName] = {
+                    options:{
+                        baseDir: baseDir,
+                        almond: true,
+                        require: require,
+                        output: outputTpl({targetName: targetName})
+                    }
+                };
+            });
+        });
+    };
+
+    var minifyTest = function(targets){
+        var testNum = 0;
+        _.each(testOptions.baseDir, function(baseDir){
+            _.each(testOptions.almond, function(almond){
+                testNum++;
+                var targetName = 'minifyTest' + testNum;
+                targets[targetName] = {
+                    options:{
+                        baseDir: baseDir,
+                        output: outputTpl({targetName: targetName}),
+                        almond: almond,
+                        minify: true
+                    }
+                };
+            });
+        });
+    };
+
+    testGenerators.push(simpleOutput);
+    testGenerators.push(requireOutput);
+    testGenerators.push(almondOutput);
+    testGenerators.push(minifyTest);
+
+    _.each(testGenerators, function(generator){
+        generator(targets);
     });
 
-    var initObj = _.merge(
+    return targets;
+};
+
+
+module.exports = function(grunt) {
+
+    grunt.initConfig(_.merge(
         {
-            durandaljs: targetsToTest
+            durandaljs: generateTestTargets()
         },
         {
             jshint: {
@@ -60,7 +126,7 @@ module.exports = function(grunt) {
                 tests: ['test/*_test.js']
             },
             clean: {
-                tests: ['tmp']
+                tests: ['test/tmp']
             },
             durandaljs : {
                 options: {
@@ -68,9 +134,7 @@ module.exports = function(grunt) {
                 }
             }
         }
-    );
-
-    grunt.initConfig(initObj);
+    ));
 
     grunt.loadTasks('tasks');
 
