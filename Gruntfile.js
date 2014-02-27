@@ -34,7 +34,8 @@ var generateTestTargets = function(){
             targets[targetName] = {
                 options: {
                     baseDir: baseDir,
-                    output: outputTpl({targetName: targetName})
+                    output: outputTpl({targetName: targetName}),
+                    extraModules: testOptions.extraModules
                 }
             };
         });
@@ -51,7 +52,8 @@ var generateTestTargets = function(){
                     options: {
                         baseDir: baseDir,
                         output: outputTpl({targetName: targetName}),
-                        require: require
+                        require: require,
+                        extraModules: testOptions.extraModules
                     }
                 };
             });
@@ -69,7 +71,8 @@ var generateTestTargets = function(){
                         baseDir: baseDir,
                         almond: true,
                         require: require,
-                        output: outputTpl({targetName: targetName})
+                        output: outputTpl({targetName: targetName}),
+                        extraModules: testOptions.extraModules
                     }
                 };
             });
@@ -87,7 +90,8 @@ var generateTestTargets = function(){
                         baseDir: baseDir,
                         output: outputTpl({targetName: targetName}),
                         almond: almond,
-                        minify: true
+                        minify: true,
+                        extraModules: testOptions.extraModules
                     }
                 };
             });
