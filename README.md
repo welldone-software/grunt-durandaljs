@@ -1,6 +1,12 @@
 # grunt-durandaljs
 
-> A [grunt](http://gruntjs.com) plugin for building [Durandal](http://durandaljs.com) projects. Generates a single js files from your scripts and views.
+> A [grunt](http://gruntjs.com) plugin for building [Durandal](http://durandaljs.com) projects. 
+
+>Both scripts and views are compiled into a single output file.
+
+>No double maintainace of path mapping. Allows various code layouts (bower, app.net etc), using the pathes alredy configured in you main.js.
+
+>Minimalistic and simple. No need to be expert with r.js's 60+ options.
 
 ## Getting Started
 This plugin requires Grunt `~0.4.2`
