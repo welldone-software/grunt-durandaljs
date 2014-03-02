@@ -33,7 +33,7 @@ exports.durandaljs = {
     }
 };
 
-var expectedDirs = fs.readdirSync(expectedDirPath);
+var expectedDirs = fs.readdirSync(outputDirPath);
 
 _.each(expectedDirs, function(testDirName){
     exports.durandaljs[testDirName] = function(test) {

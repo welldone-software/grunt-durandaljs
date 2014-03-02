@@ -121,7 +121,7 @@ var generateTestTargets = function(){
                     main: 'main2.js',
                     output: outputTpl({targetName: targetName}),
                     almond: almond,
-                    require: 'app/main2'
+                    require: 'main2'
                 }
             };
 
@@ -132,7 +132,7 @@ var generateTestTargets = function(){
                     main: 'main2.js',
                     output: outputTpl({targetName: targetName}),
                     almond: almond,
-                    require: 'nested/app3/main2'
+                    require: 'main2'
                 }
             };
 
@@ -141,8 +141,7 @@ var generateTestTargets = function(){
                 options:{
                     baseDir: 'test/fixtures/Bower Projects/external/app',
                     output: outputTpl({targetName: targetName}),
-                    almond: almond,
-                    extraModules: ['../ext/external-shell-generator']
+                    almond: almond
                 }
             };
         });
