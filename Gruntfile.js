@@ -15,7 +15,7 @@ var testOptions = {
     baseDir: ['test/fixtures/HTML StarterKit/app', 'test/fixtures/HTML Samples/app'],
     minify: [false, true],
     almond: [false, true],
-    require: [true, 'main', 'main2'],
+    require: [true, 'main'],
     extraModules: ['plugins/widget', 'plugins/dialog', 'plugins/router', 'transitions/entrance']
 };
 
