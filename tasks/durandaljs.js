@@ -19,18 +19,17 @@ module.exports = function (grunt) {
         var done = this.async(),
 
             options = this.options({
-                    baseDir: 'app',
-                    main: 'main.js',
-                    extraModules: [],
-                    verbose : false,
-                    output: undefined,
-                    minify: false,
-                    require : undefined,
-                    almond: false,
-                    moduleFilter: function(m){return true;},
-                    textModuleExtensions : ['.json', '.html', '.txt']
-                }
-            ),
+                baseDir: 'app',
+                main: 'main.js',
+                extraModules: [],
+                verbose : false,
+                output: undefined,
+                minify: false,
+                require : undefined,
+                almond: false,
+                moduleFilter: function(m){return true;},
+                textModuleExtensions : ['.json', '.html', '.txt']
+            }),
 
             baseDir =  options.baseDir,
 
@@ -53,8 +52,9 @@ module.exports = function (grunt) {
             })(),
 
             allModules = (function(){
-                var stripExtension = function(p){ return p.substr(0, p.length - path.extname(p).length);},
-                    expand = function(p){return grunt.file.expand(path.normalize(path.join(baseDir, p))); },
+                var stripExtension = function(p){ return p.substr(0, p.length - path.extname(p).length); },
+                    fixSlashes = function(p){ return p.replace(new RegExp('\\\\','g'),'/'); },
+                    expand = function(p){ return grunt.file.expand(path.normalize(path.join(baseDir, p))); },
                     relativeToBaseDir = path.relative.bind(path, baseDir),
                     jsFiles = _.unique( _.flatten([ mainFile, expand('/**/*.js') ])),
                     jsModules = jsFiles.map(relativeToBaseDir).map(stripExtension),
@@ -62,7 +62,8 @@ module.exports = function (grunt) {
                     textModules = textFiles.map(relativeToBaseDir).map(function(m){ return 'text!' + m; }),
                     scannedModules = {js: jsModules, text: textModules};
 
-                return _.flatten([scannedModules.js, options.extraModules || [], scannedModules.text]).filter(options.moduleFilter);
+                return _.flatten([scannedModules.js, options.extraModules || [], scannedModules.text])
+                    .filter(options.moduleFilter).map(fixSlashes);
             })(),
 
             insertRequireModules = (function(){
