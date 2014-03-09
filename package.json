@@ -1,7 +1,7 @@
 {
   "name": "grunt-durandaljs",
   "description": "A grunt plugin for building durandaljs projects.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "homepage": "https://github.com/welldone-software/grunt-durandaljs",
   "author": {
     "name": "Welldone Software Solutions Ltd.",
@@ -44,5 +44,8 @@
     "lodash": "~2.4.1",
     "request": "~2.34.0"
   },
-  "files": []
+  "files": [
+    "tasks",
+    "LICENSE"
+  ]
 }
